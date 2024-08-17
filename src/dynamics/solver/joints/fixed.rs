@@ -26,6 +26,10 @@ pub struct FixedJoint {
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// The joint's basis, expressed in the local space of the first body.
+    pub local_basis1: Rotation,
+    /// The joint's basis, expressed in the local space of the second body.
+    pub local_basis2: Rotation,
     /// Linear damping applied by the joint.
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
@@ -57,7 +61,7 @@ impl XpbdConstraint<2> for FixedJoint {
         let compliance = self.compliance;
 
         // Align orientation
-        let difference = self.get_rotation_difference(&body1.rotation, &body2.rotation);
+        let difference = self.get_rotation_difference(&Rotation(body1.rotation.0 * self.local_basis1.0), &Rotation(body2.rotation.0 * self.local_basis2.0));
         let mut lagrange = self.align_lagrange;
         self.align_torque =
             self.align_orientation(body1, body2, difference, &mut lagrange, compliance, dt);
@@ -78,6 +82,25 @@ impl XpbdConstraint<2> for FixedJoint {
     }
 }
 
+#[allow(unused)]
+impl FixedJoint {
+    /// Sets the basis of the joint at the attachment point in the local frame on the first body.
+    pub fn with_local_basis_1(self, basis: Rotation) -> Self {
+        Self {
+            local_basis1: basis,
+            ..self
+        }
+    }
+
+    /// Sets the basis of the joint at the attachment point in the local frame on the second body.
+    pub fn with_local_basis_2(self, basis: Rotation) -> Self {
+        Self {
+            local_basis2: basis,
+            ..self
+        }
+    }
+}
+
 impl Joint for FixedJoint {
     fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
@@ -85,6 +108,8 @@ impl Joint for FixedJoint {
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
+            local_basis1: Rotation::default(),
+            local_basis2: Rotation::default(),
             damping_linear: 1.0,
             damping_angular: 1.0,
             position_lagrange: 0.0,
